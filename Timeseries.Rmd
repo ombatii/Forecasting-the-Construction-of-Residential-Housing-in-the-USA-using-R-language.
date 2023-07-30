@@ -1,0 +1,154 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Forecasting the Construction of Residential Housing in the USA.
+
+# Business Understading
+We intend to learn to estimate future trends in the American housing market for small and
+medium-sized dwellings based on previous patterns and present market circumstances. We also
+seek to improve our knowledge of the variables influencing small and medium-sized housing
+demand and supply, such as interest rates, economic growth, demography, and government
+regulations. This forecasting will also aid in the identification of potential risks and uncertainties
+in the housing market, such as price changes, housing oversupply or undersupply, and altering
+consumer preferences.
+
+
+# Data
+
+Citations
+Data Source Link –
+https://www.census.gov/econ/currentdata/dbsearch?programCode=RESCONST&startYear=195
+9&endYear=2023&categories[]=APERMITS&dataType=TOTAL&geoLevel=US&adjusted=1&
+notAdjusted=0&errorData=0#table-results
+
+
+## Import libraries
+```{r}
+library(tidymodels)
+library(readr)
+library(zoo)
+library(lubridate)
+library(forecast)
+```
+
+
+## Import dataset
+```{r}
+library(readr)
+data <- read_csv("C:/Users/OMBATI/Desktop/R codes/timeseries/SeriesReport-202305021054.csv")
+View(data)
+head(data)
+```
+
+I will remove the first 5 rows and split the column into two;Period and Value
+
+## Cleaning data;Removing the first 5 rows and assigning the 6th as the column name
+```{r}
+clean_data <- data[-c(1:5), ]
+
+# extract column names from the first row
+colnames(clean_data) <- clean_data[1,]
+
+# remove the first row
+clean_data <- clean_data[-1, ]
+
+head(clean_data)
+
+```
+
+
+## Cleaning data;split the column into two;Period and Value
+```{r}
+# split the column into "Period" and "Value" columns
+clean_data <- data.frame(do.call("rbind", strsplit(as.character(clean_data$"Period,Value"), ",")))
+colnames(clean_data) <- c("Period", "Value")
+
+# convert "Value" column to numeric
+clean_data$Value <- as.numeric(clean_data$Value)
+
+head(clean_data)
+
+```
+## EDA
+```{r}
+skimr::skim(clean_data)
+```
+
+```{r}
+# convert the "Period" column to a date format
+clean_data$Period <- as.Date(paste0("01-", clean_data$Period), format = "%d-%b-%Y")
+
+# convert the data frame to a time series object
+clean_data_ts <- ts(clean_data$Value, start = c(year(clean_data$Period[1]), month(clean_data$Period[1])),
+                    frequency = 12)
+
+# print the time series object
+clean_data_ts
+```
+
+## Dealing with missing data in the time series data type
+```{r}
+# Check for missing values
+sum(is.na(clean_data_ts))
+
+# Impute missing values using na.interp function from forecast package
+clean_data_ts_imputed <- na.interp(clean_data_ts)
+
+# Check for missing values again
+sum(is.na(clean_data_ts_imputed))
+```
+
+
+# Holt-Winter method for forecasting
+```{r}
+# apply Holt-Winter method for forecasting
+hw_model <- hw(clean_data_ts)
+hw_forecast <- forecast(hw_model, h = 12)
+hw_forecast
+```
+
+
+# plot forecasts and actual values for Holt-Winters model
+```{r}
+autoplot(hw_model, include = 60) + 
+  autolayer(clean_data_ts, series = "Actual values") + 
+  xlab("Year") + ylab("Value") + ggtitle("Holt-Winters Forecast")
+```
+
+
+# Perform ETS method
+```{r}
+# Perform ETS method
+ets_model <- ets(clean_data_ts)
+ets_forecast <- forecast(ets_model, h = 12)
+ets_forecast
+```
+# plot forecasts and actual values for ETS model
+```{r}
+autoplot(ets_model, include = 60) + 
+  autolayer(clean_data_ts, series = "Actual values") + 
+  xlab("Year") + ylab("Value") + ggtitle("ETS Forecast")
+```
+
+
+
+## Perform ARIMA method
+```{r}
+# Perform ARIMA method
+arima_model <- auto.arima(clean_data_ts)
+arima_forecast <- forecast(arima_model, h = 12)
+arima_forecast
+```
+# plot forecasts and actual values for ARIMA model
+```{r}
+autoplot(arima_model, include = 60) + 
+  autolayer(clean_data_ts, series = "Actual values") + 
+  xlab("Year") + ylab("Value") + ggtitle("ARIMA Forecast")
+```
+
+
+
+
+
